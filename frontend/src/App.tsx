@@ -1,35 +1,44 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useRef, useState } from "react";
+import video from "./assets/test2.mp4";
+
+const injectElement = () => {
+  const rootEl = document.getElementById("root");
+  if (rootEl) {
+    const div = document.createElement("div");
+    div.id = "complex-div-id";
+    rootEl.appendChild(div);
+    console.log("Appending complex-div-id to DOM");
+  }
+};
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [elIns, setElIns] = useState(false);
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const handleLoad = () => {
+      if (!elIns) {
+        setTimeout(() => {
+          injectElement();
+          setElIns(true);
+        }, 15000);
+      }
+    };
+    if (window) {
+      handleLoad();
+    }
+  }, [elIns, window]);
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <video
+      ref={ref}
+      src={video}
+      style={{ width: "100vw", height: "100vh" }}
+      controls
+      autoPlay
+      loop
+    />
+  );
 }
 
-export default App
+export default App;

@@ -1,9 +1,38 @@
 const { launch, getStream, wss } = require("puppeteer-stream");
 const fs = require("fs");
+const { exec } = require("child_process");
 
-const file = fs.createWriteStream(__dirname + "/test1.webm");
+const webmFile = __dirname + "/test1.webm";
+const mp4File = __dirname + "/test1.mp4";
+const gifFile = __dirname + "/test1.gif";
 
 let startTime;
+let recordingStarted = false;
+
+function execPromise(command) {
+  return new Promise((resolve, reject) => {
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error: ${error.message}`);
+        reject(error);
+      } else {
+        console.log(`stdout: ${stdout}`);
+        console.error(`stderr: ${stderr}`);
+        resolve();
+      }
+    });
+  });
+}
+
+async function convertAndAddMetadata(inputFile, outputMp4, outputGif) {
+  const mp4Command = `ffmpeg -i ${inputFile} -c:v libx264 -b:v 5M -maxrate 5M -bufsize 10M -vf "scale=1920:1080,format=yuv420p,fps=60" -c:a aac -metadata title="Sample Video" -metadata description="This is a sample video with metadata" ${outputMp4}`;
+  console.log(`Executing MP4 command: ${mp4Command}`);
+  await execPromise(mp4Command);
+
+  const gifCommand = `ffmpeg -i ${inputFile} -vf "fps=10,scale=1920:-1:flags=lanczos" -c:v gif -f gif ${outputGif}`;
+  console.log(`Executing GIF command: ${gifCommand}`);
+  await execPromise(gifCommand);
+}
 
 function logTimestamp(label) {
   const currentTime = Date.now();
@@ -22,7 +51,12 @@ async function test() {
     },
   });
   const page = await browser.newPage();
-  await page.goto("https://youtu.be/aO3BEkFj9As?si=N792dxEKX5tUuMHE");
+  await page.goto("http://localhost:5173");
+
+  if (recordingStarted) return;
+  recordingStarted = true;
+  startTime = Date.now();
+  logTimestamp("Recording started");
 
   const stream = await getStream(page, {
     audio: true,
@@ -30,37 +64,42 @@ async function test() {
     mimeType: "video/webm;codecs=vp9,opus",
   });
 
+  const streamChunks = [];
+
   stream.on("data", function (data) {
     if (!startTime) {
       startTime = Date.now();
       logTimestamp("First data chunk received");
     }
-    file.write(data);
+    streamChunks.push(data);
   });
 
-  stream.on("close", () => {
+  stream.on("close", async () => {
     logTimestamp("Stream closed");
-    file.close();
-    logTimestamp("File saved")
+    const buffer = Buffer.concat(streamChunks);
+    logTimestamp("Starting file save");
+    fs.writeFileSync(webmFile, buffer);
+    logTimestamp("File save completed");
+
+    await convertAndAddMetadata(webmFile, mp4File, gifFile);
+    console.log("Conversion and metadata addition completed");
+
+    fs.unlinkSync(webmFile);
   });
 
   async function checkForEndOrSuggestions() {
-    const hasSuggestions = await page.evaluate(() => {
-      return document.querySelector(".ytp-videowall-still") !== null;
+    const endSuggestions = await page.evaluate(() => {
+      return !!document.getElementById("complex-div-id");
     });
 
-    const isVideoEnded = await page.evaluate(() => {
-      const video = document.querySelector("video");
-      return video && video.ended;
-    });
-
-    if (hasSuggestions || isVideoEnded) {
+    console.log(endSuggestions ? "Found" : "Not found");
+    if (endSuggestions) {
       setTimeout(async () => {
         await stream.destroy();
         logTimestamp("Finished recording due to video end or suggestions.");
         await browser.close();
         (await wss).close();
-      }, 1000); // Ensure there's a small delay before stopping
+      }, 1000);
     } else {
       setTimeout(checkForEndOrSuggestions, 1000);
     }

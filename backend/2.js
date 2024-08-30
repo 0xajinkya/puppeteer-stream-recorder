@@ -48,11 +48,11 @@ async function test() {
       width: 1920,
       height: 1080,
       deviceScaleFactor: 1,
-    }
+    },
   });
 
   const page = await browser.newPage();
-  
+
   await page.goto("https://embed-canary.getsmartcue.com/IEBOVY05");
 
   async function startRecording() {
@@ -64,7 +64,7 @@ async function test() {
     const stream = await getStream(page, {
       audio: true,
       video: true,
-      mimeType: 'video/webm;codecs=vp9,opus',
+      mimeType: "video/webm;codecs=vp9,opus",
     });
 
     const streamChunks = [];
@@ -93,7 +93,11 @@ async function test() {
     async function checkForSpotlightEnd() {
       const isSpotlightEnd = await page.evaluate(() => {
         const demoLayoutBox = document.querySelector("#demo-layout-box");
-        return demoLayoutBox && demoLayoutBox.getAttribute("data-demo-current-kind") === "spotlight_end";
+        return (
+          demoLayoutBox &&
+          demoLayoutBox.getAttribute("data-demo-current-kind") ===
+            "spotlight_end"
+        );
       });
 
       if (isSpotlightEnd) {
@@ -111,7 +115,7 @@ async function test() {
     checkForSpotlightEnd();
   }
 
-  page.on('framenavigated', async () => {
+  page.on("framenavigated", async () => {
     const url = page.url();
     if (url === "https://embed-canary.getsmartcue.com/IEBOVY05/play") {
       await startRecording();
