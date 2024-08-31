@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "child_process": "^1.0.2",
+    "puppeteer-core": "^23.2.1",
     "puppeteer-stream": "^3.0.15"
   }
 }
